@@ -1,0 +1,60 @@
+public class UpdateAddressbasedOnZIPAPI {
+
+    public class ziptasticReturn {
+    	string country;
+	    string state;
+	    string city;
+     public timezone timezone;
+     public Decimal lng ;
+     public Decimal lat;
+	}
+    
+    public class timezone{
+        public String timezone_abbr;
+        public String timezone_identifier;
+        public Integer utc_offset_sec;
+        public String is_dst;
+    }
+    
+  @future (callout = true) 
+	public static void makeZipCallout(Set<Id> AccIds)
+	{
+       string apiKey='s6w1QQDzvHeuLDfoUaXk0E8xjsHgisQLchSxc89NWtbn91T3AiyyHgti09hFssGq';
+       List<Account> AccList = [SELECT Id, BillingPostalCode, BillingCity, BillingState, BillingCountry
+									FROM Account 
+									WHERE Id IN :AccIds];
+        for(Account lrec : AccList){
+            string endpoint = 'https://www.zipcodeapi.com/rest/{apiKey}/info.json/{zipCode}/degrees';
+            endpoint=endpoint.replace('{apiKey}', apiKey).replace('{zipCode}',lrec.BillingPostalCode);
+		 
+        HttpRequest req = new HttpRequest();
+		    HttpResponse res = new HttpResponse();
+		    Http http = new Http();
+		    req.setMethod('GET');
+		    req.setEndpoint(endpoint);
+	 
+		    try {
+		      res = http.send(req);
+		      if (res.getStatusCode() != 200) {
+		        //throw new accountException(res.getStatus());
+		      }
+		    } catch (Exception e) {
+		      system.debug(LoggingLevel.Error, 'Error HTTP response code = '+res.getStatusCode()+'; calling '+endpoint );
+		      return;
+		    }
+            
+            String resp = res.getBody();
+	    	JSONParser parser = JSON.createParser(resp);
+	    	parser.nextToken();   
+        	ziptasticReturn zipInfo = new ziptasticReturn();
+		    zipInfo = (ziptasticReturn) parser.readValueAs(ziptasticReturn.class);
+		    lrec.BillingState = zipInfo.state;
+		    lrec.BillingCity = zipInfo.city;
+		    lrec.BillingCountry = zipInfo.country;
+        lrec.BillingLatitude = zipInfo.lat;
+        lrec.BillingLongitude = zipInfo.lng;
+        lrec.Customer_Timezone__c = zipInfo.timezone.timezone_abbr; //Customer Timezone is custom field with data type as TEXT on Account Object
+        }
+        update AccList;
+    }
+}
