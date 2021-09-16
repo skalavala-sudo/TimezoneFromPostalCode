@@ -1,0 +1,19 @@
+trigger AccountTrigger on Account(After update)
+{ 
+    if(trigger.isAfter && trigger.isupdate){
+        try{
+            set<Id> accids = new set<Id>();
+            for(Account A : trigger.new){
+                if(A.BillingPostalCode != null && A.BillingPostalCode != trigger.oldMap.get(A.Id).BillingPostalCode){
+                   accids.add(A.Id); 
+                } 
+            }
+            if(accids.size()>0){
+               UpdateAddressbasedOnZIPAPI.makeZipCallout(accids);  
+            }
+           
+        }catch(exception e){
+            
+        }
+    } 
+}
